@@ -1,0 +1,97 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "qmake - build all (debug)",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" && C:\\Qt\\5.15.2\\msvc2019_64\\bin\\qmake.exe ../qt-mcp-sdk/qt-mcp-sdk.pro -spec win32-msvc CONFIG+=debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/d", "/c"]
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Init MSVC env, then run qmake in build/ to generate Debug Makefiles"
+        },
+        {
+            "label": "nmake - build all (debug)",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" && nmake"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/d", "/c"]
+                }
+            },
+            "group": {
+                "kind": "build"
+            },
+            "dependsOn": [
+                "qmake - build all (debug)"
+            ],
+            "problemMatcher": [],
+            "detail": "Init MSVC env, then run nmake in build/ to compile all projects (Debug)"
+        },
+        {
+            "label": "build all (debug)",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" && nmake"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/d", "/c"]
+                }
+            },
+            "dependsOn": [
+                "qmake - build all (debug)"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Init MSVC env, then qmake + nmake one-click build all projects (Debug)"
+        },
+        {
+            "label": "clean all",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" && nmake distclean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/build",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/d", "/c"]
+                }
+            },
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": [],
+            "detail": "Init MSVC env, then clean all build artifacts in build/ (Makefiles, obj, .dll/.exe, etc.)"
+        }
+    ]
+}

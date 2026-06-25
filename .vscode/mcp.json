@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"my-qt-mcp-server": {
+			"url": "http://127.0.0.1:8999",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}

@@ -1,0 +1,84 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug simpleserver",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/simpleserver.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/bin",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt\\5.15.2\\msvc2019_64\\bin;${env:PATH}",
+                    "type": "string"
+                }
+            ],
+            "console": "externalConsole",
+            "preLaunchTask": "build all (debug)"
+        },
+        {
+            "name": "Run simpleclient (stdio)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/simpleclient.exe",
+            "args": [
+                "stdio",
+                "${workspaceFolder}/build/bin/simpleserver.exe"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/bin",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt\\5.15.2\\msvc2019_64\\bin;${env:PATH}",
+                    "type": "string"
+                }
+            ],
+            "console": "integratedTerminal",
+            "preLaunchTask": "build all (debug)"
+        },
+        {
+            "name": "Run simpleclient (HTTP :8999)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/simpleclient.exe",
+            "args": [
+                "http",
+                "http://127.0.0.1",
+                "8999"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/bin",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt\\5.15.2\\msvc2019_64\\bin;${env:PATH}",
+                    "type": "string"
+                }
+            ],
+            "console": "integratedTerminal",
+            "preLaunchTask": "build all (debug)"
+        },
+        {
+            "name": "Debug simpleclient (GUI)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/simpleclient.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/bin",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt\\5.15.2\\msvc2019_64\\bin;${env:PATH}",
+                    "type": "string"
+                }
+            ],
+            "console": "externalConsole",
+            "preLaunchTask": "build all (debug)"
+        }
+    ]
+}
