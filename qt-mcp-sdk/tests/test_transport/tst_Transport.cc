@@ -31,21 +31,21 @@ public:
 
     void open() override {
         m_open = true;
-        emit opened();
+        Q_EMIT opened();
     }
     void close() override {
         m_open = false;
-        emit closed();
+        Q_EMIT closed();
     }
     bool isOpen() const override { return m_open; }
     void sendMessage(const QJsonObject &message) override {
         m_lastSent = message;
-        emit messageSent(message);
+        Q_EMIT messageSent(message);
     }
 
     // Test helper: simulate receiving a message
     void injectMessage(const QJsonObject &message) {
-        emit messageReceived(message);
+        Q_EMIT messageReceived(message);
     }
 
     // Test helper: get the last sent message

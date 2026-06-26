@@ -98,6 +98,12 @@ private:
     // Incremental request id for correlation
     int m_requestCounter = 0;
 
+    // Maps JSON-RPC request id (serialized as string) → client socket.
+    // Supports both sync and async tool responses: for sync tools the entry
+    // is consumed during messageReceived emission; for async tools it persists
+    // until the handler calls sendMessage later.
+    QHash<QString, QTcpSocket *> m_pendingSockets;
+
     // Tracks the current socket being served during synchronous request handling
     QTcpSocket *m_currentRequestSocket = nullptr;
 };

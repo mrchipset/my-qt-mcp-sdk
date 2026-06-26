@@ -17,13 +17,13 @@ public:
     explicit MockTransport(QObject *parent = nullptr)
         : MCPTransport(parent) {}
 
-    void open() override { m_open = true; emit opened(); }
-    void close() override { m_open = false; emit closed(); }
+    void open() override { m_open = true; Q_EMIT opened(); }
+    void close() override { m_open = false; Q_EMIT closed(); }
     bool isOpen() const override { return m_open; }
 
     void sendMessage(const QJsonObject &message) override {
         m_sent.append(message);
-        emit messageSent(message);
+        Q_EMIT messageSent(message);
     }
 
     int sentCount() const { return m_sent.size(); }
@@ -31,7 +31,7 @@ public:
     QList<QJsonObject> allSent() const { return m_sent; }
 
     // Simulate receiving a message
-    void injectMessage(const QJsonObject &msg) { emit messageReceived(msg); }
+    void injectMessage(const QJsonObject &msg) { Q_EMIT messageReceived(msg); }
 
 signals:
     void messageSent(const QJsonObject &message);

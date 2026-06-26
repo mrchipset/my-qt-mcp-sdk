@@ -5,6 +5,20 @@
 #include <QUuid>
 
 // ============================================================
+// Helpers
+// ============================================================
+
+// Convert a QJsonValue (number or string) to a string key for use in QHash lookups.
+static QString jsonValueToKey(const QJsonValue &val)
+{
+    if (val.isString())
+        return QStringLiteral("s:") + val.toString();
+    if (val.isDouble())
+        return QStringLiteral("n:") + QString::number(val.toDouble(), 'f', 0);
+    return QString(); // null/undefined — should not be used as a key
+}
+
+// ============================================================
 // Constructor / Destructor
 // ============================================================
 
@@ -70,18 +84,18 @@ void MCPHttpTransport::open()
 
         if (m_server->listen(QHostAddress(m_host), m_port)) {
             qDebug() << "MCPHttpTransport: server listening on" << m_host << ":" << m_port;
-            emit opened();
-            emit serverStarted();
+            Q_EMIT opened();
+            Q_EMIT serverStarted();
         } else {
             QString err = QStringLiteral("Failed to listen on %1:%2 - %3")
                               .arg(m_host).arg(m_port).arg(m_server->errorString());
             qWarning() << err;
-            emit errorOccurred(err);
+            Q_EMIT errorOccurred(err);
         }
     } else {
         // Client mode: just mark as open, sendMessage will make HTTP requests
-        emit opened();
-        emit clientConnected();
+        Q_EMIT opened();
+        Q_EMIT clientConnected();
     }
 }
 
@@ -97,6 +111,7 @@ void MCPHttpTransport::close()
         m_clientBuffers.clear();
         m_clientSessionIds.clear();
         m_pendingResponses.clear();
+        m_pendingSockets.clear();
         delete m_server;
         m_server = nullptr;
     }
@@ -106,7 +121,7 @@ void MCPHttpTransport::close()
         m_networkManager = nullptr;
     }
 
-    emit closed();
+    Q_EMIT closed();
 }
 
 bool MCPHttpTransport::isOpen() const
@@ -122,20 +137,36 @@ void MCPHttpTransport::sendMessage(const QJsonObject &message)
     QByteArray jsonData = doc.toJson(QJsonDocument::Compact);
 
     if (m_mode == Mode::Server) {
-        // MCPServer calls sendMessage synchronously during messageReceived signal emission.
-        // m_currentRequestSocket is set by handleIncomingJson just before emitting.
+        // Prefer m_currentRequestSocket for synchronous path (set during signal emission).
         if (m_currentRequestSocket && m_currentRequestSocket->state() == QAbstractSocket::ConnectedState) {
             writeHttpResponse(m_currentRequestSocket, jsonData);
+            // Also clean up the pending mapping if it exists (sync path)
+            QJsonValue respId = message.value(QStringLiteral("id"));
+            if (!respId.isUndefined() && !respId.isNull())
+                m_pendingSockets.remove(jsonValueToKey(respId));
             m_currentRequestSocket = nullptr;
-        } else {
-            qWarning() << "MCPHttpTransport(Server): no active request socket to respond to";
+            return;
         }
+
+        // Async path: m_currentRequestSocket was already cleared; look up the socket
+        // by the JSON-RPC id from the pending mapping.
+        QJsonValue respId = message.value(QStringLiteral("id"));
+        if (!respId.isUndefined() && !respId.isNull()) {
+            QString idKey = jsonValueToKey(respId);
+            QTcpSocket *socket = m_pendingSockets.take(idKey);
+            if (socket && socket->state() == QAbstractSocket::ConnectedState) {
+                writeHttpResponse(socket, jsonData);
+                return;
+            }
+        }
+
+        qWarning() << "MCPHttpTransport(Server): no active request socket to respond to";
         return;
     }
 
     // Client mode: send HTTP POST
     if (m_url.isEmpty()) {
-        emit errorOccurred(QStringLiteral("No URL configured for HTTP client transport"));
+        Q_EMIT errorOccurred(QStringLiteral("No URL configured for HTTP client transport"));
         return;
     }
 
@@ -223,6 +254,13 @@ void MCPHttpTransport::onNewConnection()
             m_clientBuffers.remove(socket);
             m_clientSessionIds.remove(socket);
             m_pendingResponses.remove(socket);
+            // Remove any pending async mappings for this socket
+            for (auto it = m_pendingSockets.begin(); it != m_pendingSockets.end(); ) {
+                if (it.value() == socket)
+                    it = m_pendingSockets.erase(it);
+                else
+                    ++it;
+            }
             socket->deleteLater();
         });
     }
@@ -239,7 +277,7 @@ void MCPHttpTransport::onReplyFinished(QNetworkReply *reply)
     if (reply->error() != QNetworkReply::NoError) {
         QString errMsg = QStringLiteral("HTTP request failed: %1").arg(reply->errorString());
         qWarning() << errMsg;
-        emit errorOccurred(errMsg);
+        Q_EMIT errorOccurred(errMsg);
         return;
     }
 
@@ -269,7 +307,7 @@ void MCPHttpTransport::onReplyFinished(QNetworkReply *reply)
         return;
     }
 
-    emit messageReceived(doc.object());
+    Q_EMIT messageReceived(doc.object());
 }
 
 // ============================================================
@@ -312,12 +350,22 @@ void MCPHttpTransport::handleIncomingJson(const QByteArray &data, QTcpSocket *so
         return;
     }
 
+    // Extract JSON-RPC id (if any) for async response routing.
+    // For requests with an id, store a persistent mapping so sendMessage
+    // can find the correct socket even when called asynchronously (async tools).
+    QJsonValue reqId = doc.object().value(QStringLiteral("id"));
+    if (!reqId.isUndefined() && !reqId.isNull()) {
+        QString idKey = jsonValueToKey(reqId);
+        m_pendingSockets[idKey] = socket;
+    }
+
     // Set the current socket so sendMessage (called synchronously by MCPServer)
     // knows where to write the HTTP response.
     m_currentRequestSocket = socket;
-    emit messageReceived(doc.object());
+    Q_EMIT messageReceived(doc.object());
     // After the synchronous signal handling, clear the reference.
-    // If sendMessage was not called (e.g. notification), we still clear it.
+    // If sendMessage was called synchronously, m_pendingSockets entry was already
+    // consumed and removed. If it's an async tool, the entry remains for later use.
     m_currentRequestSocket = nullptr;
 }
 

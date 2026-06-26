@@ -128,6 +128,7 @@ CONFIG += warn_on
 - Follow Qt naming conventions (CamelCase class names, file names matching class names)
 - Use `#pragma once` or traditional `#ifndef` include guards in headers
 - Export macros use `Q_DECL_EXPORT`/`Q_DECL_IMPORT` defined in each module's `_global.h`
+- All Qt signal emissions **must** use the `Q_EMIT` macro instead of the `emit` keyword (ensures compatibility when `QT_NO_KEYWORDS` is defined)
 
 ### MCP Protocol Design (To Be Implemented)
 1. **mcpcore**: Define core MCP protocol data structures, JSON-RPC message types, transport layer abstract interface
@@ -151,6 +152,26 @@ CONFIG += warn_on
    - Auto-reconnect mechanism
 4. **examples** — Enhance examples:
    - `simpleserver` demonstrating basic MCP server usage
+
+## Design Philosophy
+
+### Build via VS Code Tasks
+
+All builds **must** use the predefined VS Code tasks in the order:
+1. **"clean all"** — Remove all build artifacts (Makefiles, `.obj`, `.dll`, `.exe`, etc.) for a clean slate
+2. **"build all (debug)"** — Run qmake to generate Makefiles, then nmake to compile everything
+
+This two-step sequence ensures reproducible builds and avoids stale object files from lingering between iterations.
+
+### Runtime PATH Setup
+
+When running any built executable or test from the terminal, **always add the Qt DLL directory to `PATH` first** to resolve runtime library dependencies:
+
+```powershell
+$env:Path = "C:\Qt\5.15.2\msvc2019_64\bin;" + $env:Path
+```
+
+Without this, `Qt5Core.dll` (and other Qt DLLs) will not be found at runtime, even though compilation succeeds.
 
 ## FAQ
 

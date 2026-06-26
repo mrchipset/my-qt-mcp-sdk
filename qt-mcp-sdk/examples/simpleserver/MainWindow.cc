@@ -194,6 +194,32 @@ void MainWindow::setupToolsAndStart(const QString &modeStr)
         std::bind(&MainWindow::handleGetText, this, std::placeholders::_1)
     );
 
+    // Build delayed_set_text input schema
+    QJsonObject delayedSetTextSchema;
+    delayedSetTextSchema[QStringLiteral("type")] = QStringLiteral("object");
+    QJsonObject delayTextProp;
+    delayTextProp[QStringLiteral("type")] = QStringLiteral("string");
+    delayTextProp[QStringLiteral("description")] = QStringLiteral("The text to display after a delay");
+    QJsonObject delayMsProp;
+    delayMsProp[QStringLiteral("type")] = QStringLiteral("number");
+    delayMsProp[QStringLiteral("description")] = QStringLiteral("Delay in milliseconds (default: 1000)");
+    QJsonObject asyncProperties;
+    asyncProperties[QStringLiteral("text")] = delayTextProp;
+    asyncProperties[QStringLiteral("delayMs")] = delayMsProp;
+    delayedSetTextSchema[QStringLiteral("properties")] = asyncProperties;
+    QJsonArray asyncRequired;
+    asyncRequired.append(QStringLiteral("text"));
+    delayedSetTextSchema[QStringLiteral("required")] = asyncRequired;
+
+    // Register delayed_set_text ASYNC tool
+    m_mcpServer->registerAsyncTool(
+        QStringLiteral("delayed_set_text"),
+        QStringLiteral("Set label text after a configurable delay (demonstrates async tool execution)"),
+        delayedSetTextSchema,
+        std::bind(&MainWindow::handleDelayedSetText, this,
+                  std::placeholders::_1, std::placeholders::_2)
+    );
+
     // Connect signals
     connect(m_mcpServer.get(), &MCPServer::toolCalled,
             this, &MainWindow::onMCPToolCalled);
@@ -245,4 +271,45 @@ QJsonObject MainWindow::handleGetText(const QJsonObject &params)
     QJsonObject result;
     result[QStringLiteral("text")] = currentText;
     return result;
+}
+
+// ============================================================
+// Async tool: delayed_set_text
+// Uses QTimer::singleShot to simulate a long-running operation.
+// The server does NOT block — other messages can be processed
+// while the timer is ticking.
+// ============================================================
+
+void MainWindow::handleDelayedSetText(const QJsonObject &params,
+                                       std::function<void(QJsonObject)> done)
+{
+    QString text = params.value(QStringLiteral("text")).toString();
+    if (text.isEmpty()) {
+        QJsonObject result;
+        result[QStringLiteral("isError")] = true;
+        result[QStringLiteral("message")] = QStringLiteral("'text' parameter is required and cannot be empty");
+        done(result);
+        return;
+    }
+
+    int delayMs = params.value(QStringLiteral("delayMs")).toInt(1000);
+    if (delayMs < 0) delayMs = 0;
+    if (delayMs > 30000) delayMs = 30000; // cap at 30s
+
+    statusBar()->showMessage(
+        QStringLiteral("Async tool 'delayed_set_text' scheduled in %1 ms...").arg(delayMs), 3000);
+
+    // Use QTimer::singleShot — non-blocking, returns control to event loop
+    QTimer::singleShot(delayMs, this, [this, text, done, delayMs]() {
+        ui->label->setText(text);
+        statusBar()->showMessage(
+            QStringLiteral("Async tool 'delayed_set_text' completed after %1 ms").arg(delayMs), 5000);
+
+        QJsonObject result;
+        result[QStringLiteral("success")] = true;
+        result[QStringLiteral("message")] =
+            QStringLiteral("Label text updated to '%1' after %2 ms delay").arg(text).arg(delayMs);
+        result[QStringLiteral("delayMs")] = delayMs;
+        done(result);
+    });
 }

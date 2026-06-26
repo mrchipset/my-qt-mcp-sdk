@@ -190,6 +190,48 @@
          </item>
         </layout>
        </item>
+       <item>
+        <layout class="QHBoxLayout" name="delayedSetTextRow">
+         <item>
+          <widget class="QLabel" name="delayedSetTextLabel">
+           <property name="text"><string>Delayed Set Text:</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="delayedSetTextEdit">
+           <property name="placeholderText"><string>Text (set after delay)</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="delayMsSpin">
+           <property name="prefix">
+            <string/>
+           </property>
+           <property name="suffix">
+            <string> ms</string>
+           </property>
+           <property name="minimum">
+            <number>100</number>
+           </property>
+           <property name="maximum">
+            <number>30000</number>
+           </property>
+           <property name="singleStep">
+            <number>100</number>
+           </property>
+           <property name="value">
+            <number>2000</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="delayedSetTextBtn">
+           <property name="text"><string>Call Async</string></property>
+           <property name="enabled"><bool>false</bool></property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
     </item>

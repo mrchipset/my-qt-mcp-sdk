@@ -3,6 +3,7 @@
 
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPointer>
 #include <QDebug>
 
 // ============================================================
@@ -20,13 +21,13 @@ MCPServer::MCPServer(std::unique_ptr<MCPTransport> transport, QObject *parent)
     QObject::connect(m_transport.get(), &MCPTransport::opened,
                      this, [this]() {
         m_running = true;
-        emit started();
+        Q_EMIT started();
     });
     QObject::connect(m_transport.get(), &MCPTransport::closed,
                      this, [this]() {
         m_running = false;
         m_initialized = false;
-        emit stopped();
+        Q_EMIT stopped();
     });
 }
 
@@ -61,6 +62,26 @@ bool MCPServer::isRunning() const
 }
 
 // ============================================================
+// Helper: build the standard MCP tool response content wrapper
+// ============================================================
+
+static QJsonObject buildToolResponse(const QJsonObject &result)
+{
+    QJsonObject responseObj;
+    QJsonArray content;
+    QJsonObject textContent;
+    textContent[QStringLiteral("type")] = QStringLiteral("text");
+    textContent[QStringLiteral("text")] = QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact));
+    content.append(textContent);
+    responseObj[QStringLiteral("content")] = content;
+
+    if (result.contains(QStringLiteral("isError")) && result[QStringLiteral("isError")].toBool())
+        responseObj[QStringLiteral("isError")] = true;
+
+    return responseObj;
+}
+
+// ============================================================
 // Tool Registration
 // ============================================================
 
@@ -72,6 +93,19 @@ void MCPServer::registerTool(const QString &name, const QString &description,
     entry.description = description;
     entry.inputSchema = inputSchema;
     entry.handler = handler;
+    entry.isAsync = false;
+    m_tools[name] = entry;
+}
+
+void MCPServer::registerAsyncTool(const QString &name, const QString &description,
+                                   const QJsonObject &inputSchema, AsyncToolHandler handler)
+{
+    ToolEntry entry;
+    entry.name = name;
+    entry.description = description;
+    entry.inputSchema = inputSchema;
+    entry.asyncHandler = handler;
+    entry.isAsync = true;
     m_tools[name] = entry;
 }
 
@@ -83,6 +117,12 @@ void MCPServer::removeTool(const QString &name)
 bool MCPServer::hasTool(const QString &name) const
 {
     return m_tools.contains(name);
+}
+
+bool MCPServer::isAsyncTool(const QString &name) const
+{
+    auto it = m_tools.find(name);
+    return it != m_tools.end() && it.value().isAsync;
 }
 
 QStringList MCPServer::toolNames() const
@@ -215,7 +255,7 @@ void MCPServer::onMessageReceived(const QJsonObject &message)
 void MCPServer::onTransportError(const QString &errorMessage)
 {
     qWarning() << "MCPServer: transport error:" << errorMessage;
-    emit errorOccurred(errorMessage);
+    Q_EMIT errorOccurred(errorMessage);
 }
 
 // ============================================================
@@ -288,23 +328,33 @@ void MCPServer::handleCallTool(const QJsonObject &message, const QJsonValue &id)
         return;
     }
 
-    emit toolCalled(toolName, arguments);
+    Q_EMIT toolCalled(toolName, arguments);
 
+    // --- Async tool path ---
+    if (it.value().isAsync) {
+        auto asyncHandler = it.value().asyncHandler;
+        // Use QPointer to guard against server destruction while async op is in-flight
+        QPointer<MCPServer> guard(this);
+        asyncHandler(arguments, [this, id, guard](QJsonObject result) {
+            if (!guard) {
+                qWarning() << "MCPServer: async tool result dropped — server was destroyed";
+                return;
+            }
+            try {
+                QJsonObject responseObj = buildToolResponse(result);
+                sendResponse(id, responseObj);
+            } catch (const std::exception &e) {
+                sendErrorResponse(id, -32603,
+                    QStringLiteral("Async tool result error: ") + QString::fromUtf8(e.what()));
+            }
+        });
+        return;
+    }
+
+    // --- Sync tool path ---
     try {
         QJsonObject result = it.value().handler(arguments);
-
-        QJsonObject responseObj;
-        QJsonArray content;
-        QJsonObject textContent;
-        textContent[QStringLiteral("type")] = QStringLiteral("text");
-        textContent[QStringLiteral("text")] = QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact));
-        content.append(textContent);
-        responseObj[QStringLiteral("content")] = content;
-
-        // Check if the result has an isError flag
-        if (result.contains(QStringLiteral("isError")) && result[QStringLiteral("isError")].toBool())
-            responseObj[QStringLiteral("isError")] = true;
-
+        QJsonObject responseObj = buildToolResponse(result);
         sendResponse(id, responseObj);
     } catch (const std::exception &e) {
         sendErrorResponse(id, -32603, QStringLiteral("Tool execution error: ") + QString::fromUtf8(e.what()));

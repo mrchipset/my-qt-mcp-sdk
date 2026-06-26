@@ -32,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->listToolsBtn, &QPushButton::clicked, this, &MainWindow::onListToolsClicked);
     connect(ui->setTextBtn, &QPushButton::clicked, this, &MainWindow::onSetTextClicked);
     connect(ui->getTextBtn, &QPushButton::clicked, this, &MainWindow::onGetTextClicked);
+    connect(ui->delayedSetTextBtn, &QPushButton::clicked, this, &MainWindow::onDelayedSetTextClicked);
     connect(ui->pingBtn, &QPushButton::clicked, this, &MainWindow::onPingClicked);
 
     // Browse button
@@ -241,6 +242,35 @@ void MainWindow::onGetTextClicked()
         });
 }
 
+void MainWindow::onDelayedSetTextClicked()
+{
+    if (!m_client) return;
+
+    QString text = ui->delayedSetTextEdit->text().trimmed();
+    if (text.isEmpty()) {
+        showError(QStringLiteral("Please enter text for delayed set."));
+        return;
+    }
+
+    int delayMs = ui->delayMsSpin->value();
+
+    appendLog(QStringLiteral("Sending tools/call delayed_set_text (async, delay=%1 ms)...").arg(delayMs));
+
+    QJsonObject args;
+    args[QStringLiteral("text")] = text;
+    args[QStringLiteral("delayMs")] = delayMs;
+
+    m_client->callTool(QStringLiteral("delayed_set_text"), args,
+        [this, delayMs](bool ok, const QJsonValue &result, int code, const QString &msg) {
+            if (!ok) {
+                appendLog(QStringLiteral("delayed_set_text failed: [%1] %2").arg(code).arg(msg));
+                return;
+            }
+            appendLog(QStringLiteral("--- Async tool response received! ---"));
+            appendJson(QStringLiteral("delayed_set_text result"), result);
+        });
+}
+
 void MainWindow::onPingClicked()
 {
     if (!m_client) return;
@@ -287,6 +317,7 @@ void MainWindow::setConnectedState(bool connected)
     ui->listToolsBtn->setEnabled(connected);
     ui->setTextBtn->setEnabled(connected);
     ui->getTextBtn->setEnabled(connected);
+    ui->delayedSetTextBtn->setEnabled(connected);
     ui->pingBtn->setEnabled(connected);
 
     // Disable config widgets when connected

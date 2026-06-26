@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QLineEdit>
+#include <QTimer>
 #include <memory>
 
 class MCPServer;
@@ -36,6 +37,10 @@ private:
     void setupToolsAndStart(const QString &modeStr);
     QJsonObject handleSetText(const QJsonObject &params);
     QJsonObject handleGetText(const QJsonObject &params);
+
+    // Async tool handlers
+    void handleDelayedSetText(const QJsonObject &params,
+                              std::function<void(QJsonObject)> done);
 
     Ui::MainWindow *ui;
     QComboBox  *m_modeCombo  = nullptr;

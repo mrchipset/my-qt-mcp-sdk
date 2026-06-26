@@ -85,7 +85,7 @@ void MCPStdioTransport::open()
         qDebug() << "MCPStdioTransport: polling stdin every 10ms";
 
         m_opened = true;
-        emit opened();
+        Q_EMIT opened();
         return;
     }
 
@@ -128,7 +128,7 @@ void MCPStdioTransport::close()
         delete m_process;
         m_process = nullptr;
     }
-    emit closed();
+    Q_EMIT closed();
 }
 
 bool MCPStdioTransport::isOpen() const
@@ -159,8 +159,8 @@ void MCPStdioTransport::onProcessStarted()
 {
     qDebug() << "MCPStdioTransport: child process started";
     m_opened = true;
-    emit processStarted();
-    emit opened();
+    Q_EMIT processStarted();
+    Q_EMIT opened();
 }
 
 void MCPStdioTransport::onReadyReadStdout()
@@ -179,8 +179,8 @@ void MCPStdioTransport::onProcessFinished(int exitCode, QProcess::ExitStatus exi
 {
     Q_UNUSED(exitStatus)
     qDebug() << "MCPStdioTransport: child process finished with exit code" << exitCode;
-    emit errorOccurred(QStringLiteral("Child process exited with code %1").arg(exitCode));
-    emit closed();
+    Q_EMIT errorOccurred(QStringLiteral("Child process exited with code %1").arg(exitCode));
+    Q_EMIT closed();
 }
 
 // ============================================================
@@ -216,7 +216,7 @@ void MCPStdioTransport::processIncomingData(const QByteArray &data)
             continue;
         }
 
-        emit messageReceived(doc.object());
+        Q_EMIT messageReceived(doc.object());
     }
 
     // Guard against unbounded buffer growth

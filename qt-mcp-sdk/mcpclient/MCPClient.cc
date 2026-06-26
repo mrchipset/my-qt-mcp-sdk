@@ -19,14 +19,14 @@ MCPClient::MCPClient(std::unique_ptr<MCPTransport> transport, QObject *parent)
     QObject::connect(m_transport.get(), &MCPTransport::opened,
                      this, [this]() {
         m_connected = true;
-        emit connected();
+        Q_EMIT connected();
     });
     QObject::connect(m_transport.get(), &MCPTransport::closed,
                      this, [this]() {
         m_connected = false;
         m_initialized = false;
         m_pendingRequests.clear();
-        emit disconnected();
+        Q_EMIT disconnected();
     });
 }
 
@@ -219,7 +219,7 @@ void MCPClient::onMessageReceived(const QJsonObject &message)
         if (m_notificationHandler) {
             m_notificationHandler(method, params);
         }
-        emit errorOccurred(QStringLiteral("Unhandled notification: ") + method);
+        Q_EMIT errorOccurred(QStringLiteral("Unhandled notification: ") + method);
         return;
     }
 
@@ -236,7 +236,7 @@ void MCPClient::onMessageReceived(const QJsonObject &message)
     // Handle the initialize response specially
     if (pending.method == QStringLiteral("initialize")) {
         m_initialized = true;
-        emit initialized();
+        Q_EMIT initialized();
     }
 
     if (!pending.callback)
@@ -259,5 +259,5 @@ void MCPClient::onMessageReceived(const QJsonObject &message)
 void MCPClient::onTransportError(const QString &errorMessage)
 {
     qWarning() << "MCPClient: transport error:" << errorMessage;
-    emit errorOccurred(errorMessage);
+    Q_EMIT errorOccurred(errorMessage);
 }

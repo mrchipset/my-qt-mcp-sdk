@@ -31,6 +31,7 @@ private slots:
     void onListToolsClicked();
     void onSetTextClicked();
     void onGetTextClicked();
+    void onDelayedSetTextClicked();
     void onPingClicked();
 
     // Client signals

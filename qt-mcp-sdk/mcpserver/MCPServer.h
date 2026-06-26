@@ -11,6 +11,9 @@
 #include <functional>
 #include <memory>
 
+// Forward declaration for QPointer guard in async callbacks
+#include <QPointer>
+
 class MCPTransport;
 
 //
@@ -27,6 +30,12 @@ class MCPSERVER_EXPORT MCPServer : public QObject
 public:
     // Tool handler: receives params, returns result as QJsonObject
     using ToolHandler = std::function<QJsonObject(const QJsonObject &params)>;
+
+    // Async tool handler: receives params + a "done" callback.
+    // The handler should invoke done(result) when the async operation completes.
+    // The callback must be called from the main thread (Qt event loop thread).
+    using AsyncToolHandler = std::function<void(const QJsonObject &params,
+                                                std::function<void(QJsonObject)> done)>;
 
     // Resource reader: receives URI, returns resource content as QJsonObject
     using ResourceReader = std::function<QJsonObject(const QString &uri)>;
@@ -45,8 +54,14 @@ public:
     // Tool registration
     void registerTool(const QString &name, const QString &description,
                       const QJsonObject &inputSchema, ToolHandler handler);
+
+    // Async tool registration — handler receives a done callback instead of returning
+    void registerAsyncTool(const QString &name, const QString &description,
+                           const QJsonObject &inputSchema, AsyncToolHandler handler);
+
     void removeTool(const QString &name);
     bool hasTool(const QString &name) const;
+    bool isAsyncTool(const QString &name) const;
     QStringList toolNames() const;
 
     // Resource registration
@@ -98,6 +113,8 @@ private:
         QString description;
         QJsonObject inputSchema;
         ToolHandler handler;
+        AsyncToolHandler asyncHandler;
+        bool isAsync = false;
     };
 
     struct ResourceEntry {
